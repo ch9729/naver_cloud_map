@@ -6,32 +6,24 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import javax.imageio.ImageIO;
-import java.awt.image.RenderedImage;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.InputStream;
-import java.io.File;
-import java.io.UnsupportedEncodingException;
+import javax.swing.*;
+import java.awt.*;
+import java.io.*;
 import java.net.HttpURLConnection;
-import java.awt.Image;
-
 import java.net.URL;
 import java.net.URLEncoder;
-import java.util.Date;
-import java.util.Scanner;
 
+/**
+ * 네이버맵 API 요청해서 이미지 가져오기
+ */
+public class NaverMap {
+    
+    MainFrame mainFrame;    //화면에 표시되고 있는 윈도우 창
+    
+    public NaverMap(MainFrame mainFrame) throws IOException, ParseException {
+        this.mainFrame = mainFrame;
 
-public class Project1 {
-
-    public static void main(String[] args) throws IOException, ParseException {
-
-        //주소를 입력받기
-        Scanner sc = new Scanner(System.in);
-        System.out.println("주소를 입력해주세요");
-        String address = sc.nextLine();  //주소를 받을때까지 대기함
-        sc.close();
-        System.out.println("받은주소는 " + address + "입니다.");
+        String address = mainFrame.addressTxt.getText();    //주소창의 주소를 가져옴
 
         StringBuilder urlString = new StringBuilder("https://naveropenapi.apigw.ntruss.com/map-geocode/v2/geocode?query=");
         //입력받은 주소는 한글 및 특수기호가 들어가므로 http 주소 요청시 인코딩 필요
@@ -52,7 +44,7 @@ public class Project1 {
         BufferedReader br;
         if (conn.getResponseCode() == 200) {
             br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
-        }else {
+        } else {
             br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "UTF-8"));
         }
 
@@ -74,21 +66,23 @@ public class Project1 {
             System.out.println("경도 : " + obj.get("x"));
             System.out.println("위도 : " + obj.get("y"));
 
-            String x = obj.get("x").toString();
-            String y = obj.get("y").toString();
-            String z = obj.get("roadAddress").toString();
+            AddressVO vo = new AddressVO();
+            vo.setRoadAddress(obj.get("roadAddress").toString());
+            vo.setJibunAddress(obj.get("jibunAddress").toString());
+            vo.setX(obj.get("x").toString());
+            vo.setY(obj.get("y").toString());
 
-            mapService(x,y,z);
+            mapService(vo);
         }
     }
 
-    static void mapService(String x, String y, String z) throws IOException {
+    private void mapService(AddressVO vo) throws IOException {
         //네이버 Static Map서비스로 이미지 가져오기
         String mapUrl = "https://naveropenapi.apigw.ntruss.com/map-static/v2/raster?";
-        String pos = URLEncoder.encode(x+ " " + y,"UTF-8");
+        String pos = URLEncoder.encode(vo.getX()+ " " + vo.getY(),"UTF-8");
         mapUrl += "w=300&h=300";    //이미지 크기
-        mapUrl += "&center=" + x + "," + y + "&level=16";    //x,y 좌표값 입력 및 줌 크기설정
-        mapUrl += "&markers=type:t|size:mid|pos:" + pos + "|label:" + URLEncoder.encode(z,"UTF-8");
+        mapUrl += "&center=" + vo.getX() + "," + vo.getY() + "&level=16";    //x,y 좌표값 입력 및 줌 크기설정
+        mapUrl += "&markers=type:t|size:mid|pos:" + pos + "|label:" + URLEncoder.encode(vo.getRoadAddress(),"UTF-8");
         System.out.println(mapUrl);
 
         URL url = new URL(mapUrl.toString());
@@ -105,12 +99,13 @@ public class Project1 {
         if(conn.getResponseCode() == 200) {
             InputStream is = conn.getInputStream();
             Image image = ImageIO.read(is);
-            //이미지 파일의 이름을 현재시간을 0.001초 단위로 만듬 (겹치지 않는다)
-            String tempname = Long.valueOf(new Date().getTime()).toString();
-            File f = new File(tempname + ".jpg");
-            f.createNewFile();
-            ImageIO.write((RenderedImage) image, "jpg", f);
             is.close();
+            ImageIcon imageIcon = new ImageIcon(image);
+            mainFrame.imageLabel.setIcon(imageIcon);
+            mainFrame.resAddress.setText(vo.getRoadAddress());
+            mainFrame.jibunAddress.setText(vo.getJibunAddress());
+            mainFrame.resX.setText(vo.getX());
+            mainFrame.resY.setText(vo.getY());
         }
 
         conn.disconnect();  //연결종료

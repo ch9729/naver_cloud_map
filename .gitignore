@@ -37,4 +37,5 @@ build/
 ### Mac OS ###
 .DS_Store
 
+## 네이버 클라우드 플랫폼 id, key 숨기기
 Key.java
